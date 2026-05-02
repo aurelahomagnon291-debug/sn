@@ -1,5 +1,4 @@
 const express = require("express");
-const serverless = require("serverless-http");
 const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
@@ -63,4 +62,10 @@ app.get("/api/login-attempts", async (_req, res) => {
   res.json(data || []);
 });
 
-module.exports = serverless(app);
+app.use((err, _req, res, _next) => {
+  console.error(err);
+  res.status(500).json({ error: "Erreur serveur" });
+});
+
+// Vercel attend l’instance Express directement (sans serverless-http).
+module.exports = app;
