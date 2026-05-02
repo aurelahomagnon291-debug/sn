@@ -1,12 +1,16 @@
 const express = require("express");
+const serverless = require("serverless-http");
 const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
 app.use(express.json());
 
-// Supabase config
-const SUPABASE_URL = "https://hbpujogqidmyfqazujvm.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhicHVqb2dxaWRteWZxYXp1anZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2NjM3NTgsImV4cCI6MjA5MzIzOTc1OH0.gNK8md0xHHxY0gDqTzUg0aNvuMw2EpqgkvIOXSrDfRM";
+// Supabase (variables Vercel : SUPABASE_URL, SUPABASE_ANON_KEY)
+const SUPABASE_URL =
+  process.env.SUPABASE_URL || "https://hbpujogqidmyfqazujvm.supabase.co";
+const SUPABASE_ANON_KEY =
+  process.env.SUPABASE_ANON_KEY ||
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhicHVqb2dxaWRteWZxYXp1anZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2NjM3NTgsImV4cCI6MjA5MzIzOTc1OH0.gNK8md0xHHxY0gDqTzUg0aNvuMw2EpqgkvIOXSrDfRM";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -59,4 +63,4 @@ app.get("/api/login-attempts", async (_req, res) => {
   res.json(data || []);
 });
 
-module.exports = app;
+module.exports = serverless(app);
