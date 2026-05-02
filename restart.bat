@@ -1,0 +1,6 @@
+@echo off
+echo Arret du serveur...
+taskkill /F /IM node.exe 2>nul
+echo.
+echo Redemarrage du serveur...
+npm start
