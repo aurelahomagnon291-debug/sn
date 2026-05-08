@@ -1,0 +1,137 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap");
+
+:root {
+  --bg-top: #fff0fa;
+  --bg-bottom: #ffcbe6;
+  --card: rgba(255, 255, 255, 0.78);
+  --line: rgba(184, 53, 120, 0.15);
+  --text: #5a1842;
+  --muted: #8b4d73;
+  --accent: #ff4fa3;
+  --accent-strong: #ff2f89;
+  --shadow: 0 30px 80px rgba(203, 55, 136, 0.22);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: "IBM Plex Sans", sans-serif;
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.65), transparent 28%),
+    linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
+  color: var(--text);
+}
+
+.followup-page {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 1.4rem;
+  overflow: hidden;
+}
+
+.orb {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(18px);
+  opacity: 0.58;
+}
+
+.orb-left {
+  top: -4rem;
+  left: -4rem;
+  width: 16rem;
+  height: 16rem;
+  background: rgba(255, 117, 179, 0.35);
+}
+
+.orb-right {
+  right: -5rem;
+  bottom: -5rem;
+  width: 18rem;
+  height: 18rem;
+  background: rgba(255, 90, 173, 0.28);
+}
+
+.followup-card {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 430px);
+  padding: 2rem 1.4rem;
+  border-radius: 2rem;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(255, 243, 249, 0.92)),
+    var(--card);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.followup-kicker {
+  margin: 0 0 0.8rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--accent-strong);
+}
+
+.followup-card h1 {
+  margin: 0;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: clamp(2.3rem, 9vw, 3.4rem);
+  line-height: 0.96;
+}
+
+.followup-copy {
+  margin: 1.1rem 0 0;
+  color: var(--muted);
+  line-height: 1.7;
+  font-size: 1rem;
+}
+
+.snapchat-button,
+.back-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 3.6rem;
+  margin-top: 1.2rem;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    opacity 180ms ease;
+}
+
+.snapchat-button {
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
+  box-shadow: 0 20px 38px rgba(255, 79, 163, 0.28);
+}
+
+.back-button {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid var(--line);
+}
+
+.snapchat-button:hover,
+.back-button:hover {
+  transform: translateY(-2px);
+}

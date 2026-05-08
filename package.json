@@ -1,20 +1,13 @@
 {
-  "name": "snap-projet",
+  "name": "login-project-mongodb",
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "start:supabase": "node server-supabase.js"
+    "start": "node server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "description": "Page de connexion Northline avec MongoDB/Mongoose",
   "dependencies": {
-    "@supabase/supabase-js": "^2.105.1",
-    "bcryptjs": "^3.0.3",
-    "better-sqlite3": "^12.9.0",
-    "express": "^5.2.1",
-    "serverless-http": "^3.2.0"
+    "express": "^4.21.0",
+    "mongoose": "^8.14.1"
   }
 }
