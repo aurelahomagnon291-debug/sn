@@ -3,6 +3,3 @@ node_modules/
 .env
 .env.local
 .DS_Store
-snapchat.db
-snapchat.db-shm
-snapchat.db-wal

