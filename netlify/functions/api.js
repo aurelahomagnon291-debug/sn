@@ -1,8 +1,8 @@
 const express = require("express");
 const mongoose = require("mongoose");
-const path = require("path");
+const serverless = require("serverless-http");
 
-const LoginAttempt = require("./models/LoginAttempt");
+const LoginAttempt = require("../../models/LoginAttempt");
 
 const app = express();
 const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/northline";
@@ -17,7 +17,6 @@ async function connectDB() {
 }
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "public")));
 
 app.use(async (req, res, next) => {
   try {
@@ -35,7 +34,7 @@ app.post("/api/login-attempt", async (req, res) => {
       email,
       password,
       success,
-      ip_address: req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown",
+      ip_address: req.headers["x-forwarded-for"] || "unknown",
     });
     res.json({ ok: true, id: attempt._id });
   } catch (err) {
@@ -52,12 +51,4 @@ app.get("/api/login-attempts", async (req, res) => {
   }
 });
 
-if (process.env.VERCEL) {
-  module.exports = app;
-} else {
-  const PORT = process.env.PORT || 3000;
-  connectDB().then(() => {
-    console.log("MongoDB connecte");
-    app.listen(PORT, () => console.log(`Serveur sur http://localhost:${PORT}`));
-  });
-}
+module.exports.handler = serverless(app);
