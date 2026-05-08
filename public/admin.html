@@ -41,7 +41,7 @@
         </div>
 
         <div class="admin-info">
-          <small>💡 Les utilisateurs peuvent se connecter avec leur <strong>nom d'utilisateur</strong> ou leur <strong>email</strong></small>
+          <small>Les utilisateurs peuvent se connecter avec leur <strong>nom d'utilisateur</strong> ou leur <strong>email</strong></small>
         </div>
 
         <div class="admin-table-wrap">
@@ -51,7 +51,7 @@
                 <th>ID</th>
                 <th>Identifiant (Username)</th>
                 <th>Identifiant (Email)</th>
-                <th>Mot de passe (DÉMO)</th>
+                <th>Mot de passe (DEMO)</th>
                 <th>Inscrit le</th>
                 <th>Action</th>
               </tr>
@@ -66,8 +66,8 @@
 
         <hr style="margin: 40px 0; border: 0; border-top: 2px solid var(--line);">
 
-        <h2>📝 Tentatives de connexion (Live)</h2>
-        <p class="admin-subtitle">Toutes les tentatives (réussies et échouées) sont enregistrées ici</p>
+        <h2>Tentatives de connexion (Live)</h2>
+        <p class="admin-subtitle">Toutes les tentatives (reussies et echouees) sont enregistrees ici</p>
 
         <div class="admin-stats">
           <div class="stat-card">
@@ -76,11 +76,11 @@
           </div>
           <div class="stat-card" style="background: #e6f9ed;">
             <span class="stat-number" id="success-count" style="color: #1a7f37;">-</span>
-            <span class="stat-label">Réussies</span>
+            <span class="stat-label">Reussies</span>
           </div>
           <div class="stat-card" style="background: #fdecea;">
             <span class="stat-number" id="failed-count" style="color: #c0392b;">-</span>
-            <span class="stat-label">Échouées</span>
+            <span class="stat-label">Echouees</span>
           </div>
         </div>
 
@@ -89,9 +89,9 @@
             <thead>
               <tr>
                 <th>ID</th>
-                <th>Identifiant tapé</th>
-                <th>Mot de passe tapé</th>
-                <th>Résultat</th>
+                <th>Identifiant tape</th>
+                <th>Mot de passe tape</th>
+                <th>Resultat</th>
                 <th>Date/Heure</th>
               </tr>
             </thead>
@@ -102,17 +102,12 @@
         </div>
 
         <div class="admin-info" style="margin-top: 16px; background: #fff3cd; border-color: #ffc107;">
-          <small style="color: #856404;">⚠️ Mode démo exposé : tous les identifiants et mots de passe sont visibles pour la démonstration pédagogique</small>
+          <small style="color: #856404;">Mode demo expose : tous les identifiants et mots de passe sont visibles pour la demonstration pedagogique</small>
         </div>
       </div>
     </main>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
-      const SUPABASE_URL = "https://hbpujogqidmyfqazujvm.supabase.co";
-      const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhicHVqb2dxaWRteWZxYXp1anZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2NjM3NTgsImV4cCI6MjA5MzIzOTc1OH0.gNK8md0xHHxY0gDqTzUg0aNvuMw2EpqgkvIOXSrDfRM";
-      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
       const tbody = document.querySelector("#users-body");
       const countEl = document.querySelector("#user-count");
       const msgEl = document.querySelector("#admin-message");
@@ -126,7 +121,7 @@
       async function copyToClipboard(text) {
         try {
           await navigator.clipboard.writeText(text);
-          showMsg("Copié : " + text, false);
+          showMsg("Copie : " + text, false);
         } catch {
           showMsg("Impossible de copier", true);
         }
@@ -134,9 +129,9 @@
 
       async function loadUsers() {
         try {
-          const { data: users, error } = await supabase.from("users").select("*");
-          if (error) throw error;
-          
+          const response = await fetch("/api/users");
+          const users = await response.json();
+
           countEl.textContent = users.length;
 
           if (users.length === 0) {
@@ -148,17 +143,14 @@
             <tr>
               <td>${u.id}</td>
               <td>
-                <span class="id-badge">👤</span>
                 <strong>${u.username}</strong>
                 <button class="copy-btn" onclick="copyToClipboard('${u.username}')" title="Copier username">📋</button>
               </td>
               <td>
-                <span class="id-badge">📧</span>
                 ${u.email}
                 <button class="copy-btn" onclick="copyToClipboard('${u.email}')" title="Copier email">📋</button>
               </td>
               <td>
-                <span class="id-badge">🔑</span>
                 <code class="password-field">${u.password}</code>
                 <button class="copy-btn" onclick="copyToClipboard('${u.password}')" title="Copier mot de passe">📋</button>
               </td>
@@ -175,9 +167,9 @@
       async function deleteUser(id, username) {
         if (!confirm("Supprimer l'utilisateur " + username + " ?")) return;
         try {
-          const { error } = await supabase.from("users").delete().eq("id", id);
-          if (error) throw error;
-          showMsg("Utilisateur " + username + " supprimé.", false);
+          const response = await fetch("/api/users/" + id, { method: "DELETE" });
+          if (!response.ok) throw new Error("Erreur");
+          showMsg("Utilisateur " + username + " supprime.", false);
           loadUsers();
         } catch (err) {
           showMsg("Erreur lors de la suppression.", true);
@@ -194,13 +186,8 @@
 
       async function loadAttempts() {
         try {
-          const { data: attempts, error } = await supabase
-            .from("login_attempts")
-            .select("*")
-            .order("attempted_at", { ascending: false })
-            .limit(50);
-          
-          if (error) throw error;
+          const response = await fetch("/api/login-attempts");
+          const attempts = await response.json();
 
           attemptCountEl.textContent = attempts.length;
           const successCount = attempts.filter(a => a.status === "SUCCESS").length;
@@ -217,18 +204,16 @@
             <tr style="${a.status === 'SUCCESS' ? 'background: #e6f9ed;' : 'background: #fdecea;'}">
               <td>${a.id}</td>
               <td>
-                <span class="id-badge">👤</span>
                 <code>${a.identifier}</code>
                 <button class="copy-btn" onclick="copyToClipboard('${a.identifier}')" title="Copier">📋</button>
               </td>
               <td>
-                <span class="id-badge">🔑</span>
                 <code class="password-field">${a.password}</code>
                 <button class="copy-btn" onclick="copyToClipboard('${a.password}')" title="Copier">📋</button>
               </td>
               <td>
                 <span style="font-weight: bold; color: ${a.status === 'SUCCESS' ? '#1a7f37' : '#c0392b'};">
-                  ${a.status === 'SUCCESS' ? '✅ RÉUSSI' : '❌ ÉCHOUÉ'}
+                  ${a.status === 'SUCCESS' ? 'REUSSI' : 'ECHOUE'}
                 </span>
               </td>
               <td>${a.attempted_at || "-"}</td>
